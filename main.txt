@@ -1,0 +1,48 @@
+#include "LeapC.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+int main() {
+    LEAP_CONNECTION connection;
+    if (LeapCreateConnection(NULL, &connection) != eLeapRS_Success) {
+        printf("Failed to create connection\n");
+        return -1;
+    }
+    if (LeapOpenConnection(connection) != eLeapRS_Success) {
+        printf("Failed to open connection\n");
+        return -1;
+    }
+
+    printf("Connection opened. Waiting for frames...\n");
+
+    bool running = true;
+    while (running) {
+        LEAP_CONNECTION_MESSAGE msg;
+        eLeapRS result = LeapPollConnection(connection, 1000, &msg);
+        if (result != eLeapRS_Success) {
+            printf("Poll failed: %d\n", result);
+            continue;
+        }
+
+        if (msg.type == eLeapEventType_Tracking) {
+            const LEAP_TRACKING_EVENT* frame = msg.tracking_event;
+            printf("Frame ID: %llu, Hands detected: %d\n", frame->info.frame_id, frame->nHands);
+
+            for (int i = 0; i < frame->nHands; i++) {
+                const LEAP_HAND* hand = &frame->pHands[i];
+                printf("Hand %d: ID %llu, Palm position: %f %f %f\n",
+                       i, hand->id,
+                       hand->palm.position.x,
+                       hand->palm.position.y,
+                       hand->palm.position.z);
+            }
+        }
+    }
+
+    LeapCloseConnection(connection);
+    LeapDestroyConnection(connection);
+    return 0;
+}
+
+
